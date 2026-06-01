@@ -1,0 +1,173 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/container-queries";
+
+@theme {
+  --color-primary: #E89C31;
+  --color-secondary: #FDF6E9;
+  --color-dark: #1A242F;
+  --color-accent: #F3A63B;
+  --color-brand-orange: #e6912d;
+  --color-brand-cream: #fffcf2;
+  --color-brand-footer: #0b1626;
+  --color-brand-gray: #f4f4f4;
+
+  --font-myanmar: Georgia, serif;
+  --font-serif: "Playfair Display", serif;
+  --font-sans: Inter, sans-serif;
+}
+
+@layer utilities {
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  .shadow-card {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  }
+}
+
+@layer components {
+  .nav-link-active {
+    color: var(--color-brand-orange);
+    border-bottom: 2px solid var(--color-brand-orange);
+  }
+}
+
+/* Login Page Styles */
+.bg-warm-gradient {
+    background: linear-gradient(135deg, #f3d4a1 0%, #e6a847 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.shape-1 {
+    position: absolute;
+    top: -10%;
+    right: -10%;
+    width: 300px;
+    height: 300px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    filter: blur(40px);
+}
+
+.shape-2 {
+    position: absolute;
+    bottom: -15%;
+    left: -15%;
+    width: 400px;
+    height: 400px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    filter: blur(50px);
+}
+
+.shape-3 {
+    position: absolute;
+    top: 20%;
+    right: -5%;
+    width: 250px;
+    height: 250px;
+    background: rgba(184, 115, 51, 0.1);
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+}
+
+.input-field {
+    background-color: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    transition: border-color 0.2s;
+}
+
+.input-field:focus {
+    outline: none;
+    border-color: #e6a847;
+    background-color: #ffffff;
+}
+
+.tab-active {
+    background-color: white;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+/* --- Global Cool Button Hover Effects --- */
+
+/* Primary Filled Buttons */
+button[class*="bg-primary"],
+button[class*="bg-[#e6a847]"],
+button[class*="bg-[#e69d3a]"],
+button[class*="bg-[#E39D33]"],
+a[class*="bg-primary"],
+button[type="submit"] {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+button[class*="bg-primary"]:hover,
+button[class*="bg-[#e6a847]"]:hover,
+button[class*="bg-[#e69d3a]"]:hover,
+button[class*="bg-[#E39D33]"]:hover,
+a[class*="bg-primary"]:hover,
+button[type="submit"]:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 0 12px 20px -8px rgba(227, 157, 51, 0.6) !important;
+    filter: brightness(1.05);
+}
+
+button[class*="bg-primary"]:active,
+button[class*="bg-[#e6a847]"]:active,
+button[class*="bg-[#e69d3a]"]:active,
+button[class*="bg-[#E39D33]"]:active,
+a[class*="bg-primary"]:active,
+button[type="submit"]:active {
+    transform: translateY(0) scale(0.96) !important;
+    box-shadow: 0 4px 6px -2px rgba(227, 157, 51, 0.3) !important;
+}
+
+/* Secondary Outline Buttons */
+button[class*="border-primary"],
+a[class*="border-primary"],
+button[class*="border-[#e69d3a]"],
+button[class*="border-[#E39D33]"] {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+button[class*="border-primary"]:hover,
+a[class*="border-primary"]:hover,
+button[class*="border-[#e69d3a]"]:hover,
+button[class*="border-[#E39D33]"]:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 15px -5px rgba(227, 157, 51, 0.2) !important;
+    background-color: rgba(227, 157, 51, 0.05);
+}
+
+button[class*="border-primary"]:active,
+a[class*="border-primary"]:active,
+button[class*="border-[#e69d3a]"]:active,
+button[class*="border-[#E39D33]"]:active {
+    transform: translateY(0) scale(0.97) !important;
+    box-shadow: none !important;
+}
+
+/* --- Animated Background Styles --- */
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+.animate-blob {
+  animation: blob 7s infinite alternate ease-in-out;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Make main page background transparent to show AnimatedBackground */
+#root > div:not(.animated-bg-container) {
+  background-color: transparent !important;
+}
