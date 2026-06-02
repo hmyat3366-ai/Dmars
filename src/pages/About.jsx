@@ -158,8 +158,8 @@ const About = () => {
 
               {/* Designers */}
               <h3 className="text-2xl font-bold font-serif text-gray-800 mb-8 text-center border-b pb-4">UI/UX Design Team</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
-                  {['Hsu Wai Wai Hlaing', 'Kubo', 'MoMotaro', 'Mio', 'Gouki', 'Zuri'].map((name, i) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-6">
+                  {['Hsu Wai Wai Hlaing', 'Kubo', 'MoMotaro', 'Mio', 'Gouki', 'Zuri', 'Clovie'].map((name, i) => (
                       <div key={name} className="text-center group">
                           <div className="w-28 h-28 mx-auto rounded-full overflow-hidden mb-4 border-4 border-orange-100 group-hover:border-[#E39D33] transition-colors shadow-lg bg-gray-50">
                               <img src={`https://i.pravatar.cc/150?img=${i + 31}`} alt={name} className="w-full h-full object-cover" />
