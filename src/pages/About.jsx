@@ -148,7 +148,7 @@ const About = () => {
                   {['Mr Miles', 'Hedy Livz', 'Jeeryvpro', 'Aks'].map((name, i) => (
                       <div key={name} className="text-center group">
                           <div className="w-32 h-32 mx-auto rounded-full overflow-hidden mb-4 border-4 border-orange-100 group-hover:border-[#E39D33] transition-colors shadow-lg bg-gray-50">
-                              <img src={`https://i.pravatar.cc/150?img=${i + 11}`} alt={name} className="w-full h-full object-cover" />
+                              <img src={`https://randomuser.me/api/portraits/lego/${i}.jpg`} alt={name} className="w-full h-full object-cover" />
                           </div>
                           <h4 className="font-bold text-lg font-serif text-gray-900">{name}</h4>
                           <p className="text-[#E39D33] font-medium text-sm mt-1">Developer</p>
@@ -162,7 +162,7 @@ const About = () => {
                   {['Hsu Wai Wai Hlaing', 'Kubo', 'MoMotaro', 'Mio', 'Gouki', 'Zuri', 'Clovie'].map((name, i) => (
                       <div key={name} className="text-center group">
                           <div className="w-28 h-28 mx-auto rounded-full overflow-hidden mb-4 border-4 border-orange-100 group-hover:border-[#E39D33] transition-colors shadow-lg bg-gray-50">
-                              <img src={`https://i.pravatar.cc/150?img=${i + 31}`} alt={name} className="w-full h-full object-cover" />
+                              <img src={`https://randomuser.me/api/portraits/lego/${(i + 4) % 10}.jpg`} alt={name} className="w-full h-full object-cover" />
                           </div>
                           <h4 className="font-bold text-md font-serif text-gray-900 leading-tight">{name}</h4>
                           <p className="text-[#E39D33] font-medium text-xs mt-1">UI/UX Designer</p>
