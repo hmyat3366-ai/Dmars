@@ -17,18 +17,25 @@ const OwnerDashboard = () => {
   const [roomRequests, setRoomRequests] = useState([]);
 
   useEffect(() => {
-    setFoodOrders(getAllOrders());
-    setRoomRequests(getAllAppointments());
+    const fetchData = async () => {
+      const orders = await getAllOrders();
+      const appointments = await getAllAppointments();
+      setFoodOrders(orders);
+      setRoomRequests(appointments);
+    };
+    fetchData();
   }, [activeTab, getAllOrders, getAllAppointments]);
 
-  const handleConfirmOrder = (id, status) => {
-    updateOrderStatus(id, status);
-    setFoodOrders(getAllOrders());
+  const handleConfirmOrder = async (id, status) => {
+    await updateOrderStatus(id, status);
+    const orders = await getAllOrders();
+    setFoodOrders(orders);
   };
 
-  const handleConfirmAppointment = (id, status) => {
-    updateAppointmentStatus(id, status);
-    setRoomRequests(getAllAppointments());
+  const handleConfirmAppointment = async (id, status) => {
+    await updateAppointmentStatus(id, status);
+    const appointments = await getAllAppointments();
+    setRoomRequests(appointments);
   };
 
   // Add Food Form State
@@ -38,14 +45,14 @@ const OwnerDashboard = () => {
   const [foodDesc, setFoodDesc] = useState('');
   const [foodImgUrl, setFoodImgUrl] = useState('');
 
-  const handleAddFood = (e) => {
+  const handleAddFood = async (e) => {
     e.preventDefault();
     if (!foodName || !foodPrice || !foodDesc) {
       alert("Please fill in all required fields!");
       return;
     }
 
-    addFood({
+    await addFood({
       name: foodName,
       price: parseFloat(foodPrice),
       category: foodCategory,
@@ -72,14 +79,14 @@ const OwnerDashboard = () => {
   const [roomDesc, setRoomDesc] = useState('');
   const [roomImgUrl, setRoomImgUrl] = useState('');
 
-  const handleAddRoom = (e) => {
+  const handleAddRoom = async (e) => {
     e.preventDefault();
     if (!roomName || !roomPrice || !roomLocation) {
       alert("Please fill in all required fields!");
       return;
     }
 
-    addRoom({
+    await addRoom({
       name: roomName,
       price: parseFloat(roomPrice),
       location: roomLocation,

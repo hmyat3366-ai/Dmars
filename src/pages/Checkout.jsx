@@ -17,12 +17,12 @@ const Checkout = () => {
   const total = subtotal + deliveryFee + serviceFee;
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     // Generate order and save to user's history
     const restaurantName = cartItems.length > 0 ? (cartItems[0].restaurant || 'DMAR Food') : 'DMAR Food';
-    addFoodOrder({ 
+    await addFoodOrder({ 
       restaurant: restaurantName, 
-      total: `$${total.toFixed(2)}`, 
+      total: total.toFixed(2), 
       items: cartItems 
     });
 

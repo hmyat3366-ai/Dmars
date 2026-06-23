@@ -18,14 +18,14 @@ const RoomRequestModal = ({ isOpen, onClose, roomName }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
       alert("Please login to request a room.");
       return;
     }
     // Simulate API call and save to user's history
-    addRoomAppointment(roomName, formData.moveInDate, 'TBD');
+    await addRoomAppointment(roomName, formData.moveInDate, 'TBD');
     setTimeout(() => {
       setIsSubmitted(true);
     }, 1000);

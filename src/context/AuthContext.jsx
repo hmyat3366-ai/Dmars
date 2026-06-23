@@ -1,4 +1,5 @@
 import { createContext, useState, useContext, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext();
 
@@ -6,137 +7,304 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Initialize from localStorage on load to simulate persistent session
-  useEffect(() => {
-    const storedUser = localStorage.getItem('dmar_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+  // Fetch user profile from profiles table
+  const fetchProfile = async (userId) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching profile:', error);
+      return null;
     }
+    return data;
+  };
+
+  // Listen for auth state changes
+  useEffect(() => {
+    // Get initial session
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUser(session.user);
+        const profileData = await fetchProfile(session.user.id);
+        if (profileData) {
+          setProfile(profileData);
+        }
+      }
+      setLoading(false);
+    };
+
+    getSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        // Small delay to allow the trigger to create the profile
+        if (event === 'SIGNED_IN') {
+          setTimeout(async () => {
+            const profileData = await fetchProfile(session.user.id);
+            if (profileData) {
+              setProfile(profileData);
+            }
+          }, 500);
+        } else {
+          const profileData = await fetchProfile(session.user.id);
+          if (profileData) {
+            setProfile(profileData);
+          }
+        }
+      } else {
+        setUser(null);
+        setProfile(null);
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
-  const signup = (name, email, password, role) => {
-    const usersDB = JSON.parse(localStorage.getItem('dmar_users_db')) || [];
-    
-    // Check if email already exists
-    const existingUser = usersDB.find(u => u.email === email);
-    if (existingUser) {
-      throw new Error("An account with this email already exists.");
+  // Sign up with email & password
+  const signup = async (name, email, password, role) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name, role }
+      }
+    });
+
+    if (error) throw error;
+
+    // Update profile with name and role (in case trigger hasn't fired yet)
+    if (data.user) {
+      await supabase
+        .from('profiles')
+        .upsert({
+          id: data.user.id,
+          name,
+          email,
+          role
+        });
+      
+      setProfile({ id: data.user.id, name, email, role });
     }
 
-    const newUser = { name, email, password, role };
-    usersDB.push(newUser);
-    localStorage.setItem('dmar_users_db', JSON.stringify(usersDB));
-    
-    // Log the user in after signup
-    setUser({ name, email, role });
-    localStorage.setItem('dmar_user', JSON.stringify({ name, email, role }));
+    return data;
   };
 
-  const login = (email, password, role) => {
-    const usersDB = JSON.parse(localStorage.getItem('dmar_users_db')) || [];
-    
-    const validUser = usersDB.find(u => u.email === email && u.password === password && u.role === role);
-    
-    if (!validUser) {
-      throw new Error("Invalid email, password, or account type.");
+  // Log in with email & password
+  const login = async (email, password, role) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) throw error;
+
+    // Verify the user has the correct role
+    const profileData = await fetchProfile(data.user.id);
+    if (profileData && profileData.role !== role) {
+      await supabase.auth.signOut();
+      throw new Error(`This account is registered as "${profileData.role}", not "${role}".`);
     }
 
-    const loggedInUser = { name: validUser.name, email: validUser.email, role: validUser.role };
-    setUser(loggedInUser);
-    localStorage.setItem('dmar_user', JSON.stringify(loggedInUser));
+    setProfile(profileData);
+    return data;
   };
 
-  const socialLogin = (provider, role) => {
-    const email = `user@${provider.toLowerCase()}.com`;
-    const name = `${provider} User`;
-    const usersDB = JSON.parse(localStorage.getItem('dmar_users_db')) || [];
-    
-    let userAccount = usersDB.find(u => u.email === email && u.role === role);
-    if (!userAccount) {
-      userAccount = { name, email, password: 'social_login', role };
-      usersDB.push(userAccount);
-      localStorage.setItem('dmar_users_db', JSON.stringify(usersDB));
-    }
-    
-    const loggedInUser = { name: userAccount.name, email: userAccount.email, role: userAccount.role };
-    setUser(loggedInUser);
-    localStorage.setItem('dmar_user', JSON.stringify(loggedInUser));
+  // Social login (Google/Facebook)
+  const socialLogin = async (provider, role) => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: provider.toLowerCase(),
+      options: {
+        redirectTo: window.location.origin,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      }
+    });
+
+    if (error) throw error;
+    return data;
   };
 
-  const addFoodOrder = (order) => {
+  // Add a food order
+  const addFoodOrder = async (order) => {
     if (!user) return;
-    const ordersDB = JSON.parse(localStorage.getItem('dmar_orders_db')) || [];
-    const newOrder = { 
-        ...order, 
-        id: `ORD-${Math.floor(1000 + Math.random() * 9000)}`, 
-        userEmail: user.email, 
-        date: new Date().toISOString().split('T')[0], 
-        status: 'Processing' 
+    
+    const newOrder = {
+      id: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+      user_id: user.id,
+      user_email: user.email,
+      items: order.items || [],
+      subtotal: order.subtotal || 0,
+      delivery_fee: order.deliveryFee || 0,
+      total: order.total || 0,
+      status: 'Processing',
+      delivery_address: order.deliveryAddress || {},
+      payment_method: order.paymentMethod || ''
     };
-    ordersDB.push(newOrder);
-    localStorage.setItem('dmar_orders_db', JSON.stringify(ordersDB));
+
+    const { error } = await supabase.from('orders').insert(newOrder);
+    if (error) {
+      console.error('Error creating order:', error);
+      throw error;
+    }
+    return newOrder;
   };
 
-  const addRoomAppointment = (roomName, date, time) => {
+  // Add room appointment
+  const addRoomAppointment = async (roomName, date, time) => {
     if (!user) return;
-    const aptDB = JSON.parse(localStorage.getItem('dmar_apt_db')) || [];
-    const newApt = { 
-        id: `APT-${Math.floor(1000 + Math.random() * 9000)}`, 
-        room: roomName, 
-        date, 
-        time, 
-        status: 'Pending', 
-        userEmail: user.email 
+    
+    const newApt = {
+      id: `APT-${Math.floor(1000 + Math.random() * 9000)}`,
+      user_id: user.id,
+      user_email: user.email,
+      room: roomName,
+      date,
+      time,
+      status: 'Pending'
     };
-    aptDB.push(newApt);
-    localStorage.setItem('dmar_apt_db', JSON.stringify(aptDB));
+
+    const { error } = await supabase.from('appointments').insert(newApt);
+    if (error) {
+      console.error('Error creating appointment:', error);
+      throw error;
+    }
+    return newApt;
   };
 
-  const getUserOrders = () => {
+  // Get user's own orders
+  const getUserOrders = async () => {
     if (!user) return [];
-    const ordersDB = JSON.parse(localStorage.getItem('dmar_orders_db')) || [];
-    return ordersDB.filter(o => o.userEmail === user.email).reverse();
+    
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching orders:', error);
+      return [];
+    }
+    return data || [];
   };
 
-  const getUserAppointments = () => {
+  // Get user's own appointments
+  const getUserAppointments = async () => {
     if (!user) return [];
-    const aptDB = JSON.parse(localStorage.getItem('dmar_apt_db')) || [];
-    return aptDB.filter(a => a.userEmail === user.email).reverse();
+    
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching appointments:', error);
+      return [];
+    }
+    return data || [];
   };
 
-  const getAllOrders = () => {
-    return (JSON.parse(localStorage.getItem('dmar_orders_db')) || []).reverse();
+  // Get ALL orders (for owner dashboard)
+  const getAllOrders = async () => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching all orders:', error);
+      return [];
+    }
+    return data || [];
   };
 
-  const getAllAppointments = () => {
-    return (JSON.parse(localStorage.getItem('dmar_apt_db')) || []).reverse();
+  // Get ALL appointments (for owner dashboard)
+  const getAllAppointments = async () => {
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching all appointments:', error);
+      return [];
+    }
+    return data || [];
   };
 
-  const updateOrderStatus = (orderId, status) => {
-    const ordersDB = JSON.parse(localStorage.getItem('dmar_orders_db')) || [];
-    const updatedOrders = ordersDB.map(o => o.id === orderId ? { ...o, status } : o);
-    localStorage.setItem('dmar_orders_db', JSON.stringify(updatedOrders));
+  // Update order status (owner)
+  const updateOrderStatus = async (orderId, status) => {
+    const { error } = await supabase
+      .from('orders')
+      .update({ status })
+      .eq('id', orderId);
+    
+    if (error) {
+      console.error('Error updating order:', error);
+      throw error;
+    }
   };
 
-  const updateAppointmentStatus = (aptId, status) => {
-    const aptDB = JSON.parse(localStorage.getItem('dmar_apt_db')) || [];
-    const updatedApt = aptDB.map(a => a.id === aptId ? { ...a, status } : a);
-    localStorage.setItem('dmar_apt_db', JSON.stringify(updatedApt));
+  // Update appointment status (owner)
+  const updateAppointmentStatus = async (aptId, status) => {
+    const { error } = await supabase
+      .from('appointments')
+      .update({ status })
+      .eq('id', aptId);
+    
+    if (error) {
+      console.error('Error updating appointment:', error);
+      throw error;
+    }
   };
 
-  const logout = () => {
+  // Logout
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('dmar_user');
+    setProfile(null);
   };
+
+  // Create a compatible user object for components that expect { name, email, role }
+  const compatibleUser = profile ? {
+    name: profile.name,
+    email: profile.email,
+    role: profile.role,
+    id: user?.id
+  } : null;
 
   return (
-    <AuthContext.Provider value={{ 
-        user, login, signup, socialLogin, logout, 
-        addFoodOrder, addRoomAppointment, 
-        getUserOrders, getUserAppointments,
-        getAllOrders, getAllAppointments,
-        updateOrderStatus, updateAppointmentStatus
+    <AuthContext.Provider value={{
+      user: compatibleUser,
+      supabaseUser: user,
+      profile,
+      loading,
+      login,
+      signup,
+      socialLogin,
+      logout,
+      addFoodOrder,
+      addRoomAppointment,
+      getUserOrders,
+      getUserAppointments,
+      getAllOrders,
+      getAllAppointments,
+      updateOrderStatus,
+      updateAppointmentStatus
     }}>
       {children}
     </AuthContext.Provider>

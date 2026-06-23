@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -7,9 +7,26 @@ import { useAuth } from '../context/AuthContext';
 const AccountSettings = () => {
   const { user, getUserOrders, getUserAppointments } = useAuth();
   const [activeTab, setActiveTab] = useState('appointments');
+  const [roomAppointments, setRoomAppointments] = useState([]);
+  const [foodOrders, setFoodOrders] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
 
-  const roomAppointments = getUserAppointments();
-  const foodOrders = getUserOrders();
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoadingData(true);
+      try {
+        const apts = await getUserAppointments();
+        const orders = await getUserOrders();
+        setRoomAppointments(apts);
+        setFoodOrders(orders);
+      } catch (err) {
+        console.error("Failed to load user data:", err);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    if (user) fetchData();
+  }, [user, getUserAppointments, getUserOrders]);
 
   const sidebarItems = [
     { key: 'appointments', label: 'Room Appointments', icon: (

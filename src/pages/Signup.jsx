@@ -8,23 +8,35 @@ const Signup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { signup, socialLogin } = useAuth();
   const navigate = useNavigate();
 
-  const handleSignup = (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
+    setIsLoading(true);
     try {
-      signup(name, email, password, activeTab);
-      navigate('/');
+      await signup(name, email, password, activeTab);
+      setSuccess('Account created successfully! You can now log in.');
+      // Small delay to show success message
+      setTimeout(() => navigate('/'), 1500);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleSocialLogin = (provider) => {
-    socialLogin(provider, activeTab);
-    navigate('/');
+  const handleSocialLogin = async (provider) => {
+    try {
+      await socialLogin(provider, activeTab);
+      // OAuth will redirect
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
@@ -119,6 +131,11 @@ const Signup = () => {
                           {error}
                         </div>
                       )}
+                      {success && (
+                        <div className="p-3 bg-green-50 text-green-600 rounded-lg text-sm font-semibold border border-green-100">
+                          {success}
+                        </div>
+                      )}
                       <div data-purpose="name-field">
                           <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
                           <input 
@@ -128,6 +145,7 @@ const Signup = () => {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             required
+                            disabled={isLoading}
                           />
                       </div>
                       <div data-purpose="email-field">
@@ -139,6 +157,7 @@ const Signup = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
+                            disabled={isLoading}
                           />
                       </div>
                       <div data-purpose="password-field">
@@ -151,6 +170,7 @@ const Signup = () => {
                             onChange={(e) => setPassword(e.target.value)}
                             required
                             minLength={6}
+                            disabled={isLoading}
                           />
                       </div>
                       
@@ -162,8 +182,12 @@ const Signup = () => {
                       </div>
                       
                       {/* Submit Button */}
-                      <button className="w-full bg-[#e6a847] hover:bg-[#d49635] text-white font-bold py-4 rounded-xl transition-colors shadow-lg shadow-orange-200" type="submit">
-                          Sign Up
+                      <button 
+                        className="w-full bg-[#e6a847] hover:bg-[#d49635] text-white font-bold py-4 rounded-xl transition-colors shadow-lg shadow-orange-200 disabled:opacity-60" 
+                        type="submit"
+                        disabled={isLoading}
+                      >
+                          {isLoading ? 'Creating Account...' : 'Sign Up'}
                       </button>
                   </form>
                   

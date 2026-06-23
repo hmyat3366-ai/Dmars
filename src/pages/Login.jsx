@@ -7,23 +7,31 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { login, socialLogin } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
     try {
-      login(email, password, activeTab);
+      await login(email, password, activeTab);
       navigate('/');
     } catch (err) {
       setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleSocialLogin = (provider) => {
-    socialLogin(provider, activeTab);
-    navigate('/');
+  const handleSocialLogin = async (provider) => {
+    try {
+      await socialLogin(provider, activeTab);
+      // OAuth will redirect, so no navigate needed
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
@@ -127,6 +135,7 @@ const Login = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
+                            disabled={isLoading}
                           />
                       </div>
                       <div data-purpose="password-field">
@@ -138,6 +147,7 @@ const Login = () => {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
+                            disabled={isLoading}
                           />
                       </div>
                       
@@ -151,8 +161,12 @@ const Login = () => {
                       </div>
                       
                       {/* Submit Button */}
-                      <button className="w-full bg-[#e6a847] hover:bg-[#d49635] text-white font-bold py-4 rounded-xl transition-colors shadow-lg shadow-orange-200" type="submit">
-                          Log In
+                      <button 
+                        className="w-full bg-[#e6a847] hover:bg-[#d49635] text-white font-bold py-4 rounded-xl transition-colors shadow-lg shadow-orange-200 disabled:opacity-60" 
+                        type="submit"
+                        disabled={isLoading}
+                      >
+                          {isLoading ? 'Logging in...' : 'Log In'}
                       </button>
                   </form>
                   
