@@ -35,7 +35,11 @@ export const RoomProvider = ({ children }) => {
     if (error) {
       console.error('Error fetching rooms:', error);
     } else {
-      setRooms(data || []);
+      const mappedRooms = (data || []).map(r => ({
+        ...r,
+        desc: r.description
+      }));
+      setRooms(mappedRooms);
     }
     setLoading(false);
   };
@@ -52,6 +56,7 @@ export const RoomProvider = ({ children }) => {
       bedrooms: newRoom.bedrooms || 1,
       amenities: newRoom.amenities || [],
       img: newRoom.img || '',
+      description: newRoom.desc || newRoom.description || '',
       owner_id: user?.id || null
     };
 
