@@ -1,5 +1,5 @@
 import { createContext, useState, useContext, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { fetchApi } from '../lib/api';
 
 const AuthContext = createContext();
 
@@ -10,140 +10,87 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user profile from profiles table
-  const fetchProfile = async (userId) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    if (error) {
-      console.error('Error fetching profile:', error);
-      return null;
-    }
-    return data;
-  };
-
-  // Listen for auth state changes
+  // Load user on start
   useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser(session.user);
-        const profileData = await fetchProfile(session.user.id);
-        if (profileData) {
-          setProfile(profileData);
+    const loadUser = () => {
+      const storedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('token');
+      if (storedUser && token) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setUser({ id: parsedUser.id, email: parsedUser.email });
+          setProfile(parsedUser);
+        } catch (e) {
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
         }
       }
       setLoading(false);
     };
-
-    getSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        // Small delay to allow the trigger to create the profile
-        if (event === 'SIGNED_IN') {
-          setTimeout(async () => {
-            const profileData = await fetchProfile(session.user.id);
-            if (profileData) {
-              setProfile(profileData);
-            }
-          }, 500);
-        } else {
-          const profileData = await fetchProfile(session.user.id);
-          if (profileData) {
-            setProfile(profileData);
-          }
-        }
-      } else {
-        setUser(null);
-        setProfile(null);
-      }
-    });
-
-    return () => {
-      subscription?.unsubscribe();
-    };
+    loadUser();
   }, []);
 
-  // Sign up with email & password
   const signup = async (name, email, password, role) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { name, role }
-      }
+    const data = await fetchApi('/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password, role }),
     });
-
-    if (error) throw error;
-
-    // Update profile with name and role (in case trigger hasn't fired yet)
-    if (data.user) {
-      await supabase
-        .from('profiles')
-        .upsert({
-          id: data.user.id,
-          name,
-          email,
-          role
-        });
-      
-      setProfile({ id: data.user.id, name, email, role });
-    }
-
+    
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    
+    setUser({ id: data.user.id, email: data.user.email });
+    setProfile(data.user);
+    
     return data;
   };
 
-  // Log in with email & password
   const login = async (email, password, role) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
+    const data = await fetchApi('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, role }),
     });
 
-    if (error) throw error;
-
-    // Verify the user has the correct role
-    const profileData = await fetchProfile(data.user.id);
-    if (profileData && profileData.role !== role) {
-      await supabase.auth.signOut();
-      throw new Error(`This account is registered as "${profileData.role}", not "${role}".`);
-    }
-
-    setProfile(profileData);
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    
+    setUser({ id: data.user.id, email: data.user.email });
+    setProfile(data.user);
+    
     return data;
   };
 
-  // Social login (Google/Facebook)
   const socialLogin = async (provider, role) => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: provider.toLowerCase(),
-      options: {
-        redirectTo: window.location.origin,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
-      }
+    // For social login, you might need a different flow with MongoDB
+    // such as using Passport.js or a Firebase/Auth0 proxy.
+    // For now, this is a mock using the social endpoint we created.
+    const mockEmail = `user@${provider}.com`;
+    const data = await fetchApi('/auth/social', {
+      method: 'POST',
+      body: JSON.stringify({ email: mockEmail, name: `User from ${provider}`, role }),
     });
 
-    if (error) throw error;
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    
+    setUser({ id: data.user.id, email: data.user.email });
+    setProfile(data.user);
+    
     return data;
   };
 
-  // Add a food order
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    setProfile(null);
+  };
+
   const addFoodOrder = async (order) => {
     if (!user) return;
     
-    const newOrder = {
+    const newOrderData = {
       id: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
-      user_id: user.id,
       user_email: user.email,
       items: order.items || [],
       subtotal: order.subtotal || 0,
@@ -154,21 +101,17 @@ export const AuthProvider = ({ children }) => {
       payment_method: order.paymentMethod || ''
     };
 
-    const { error } = await supabase.from('orders').insert(newOrder);
-    if (error) {
-      console.error('Error creating order:', error);
-      throw error;
-    }
-    return newOrder;
+    return await fetchApi('/orders', {
+      method: 'POST',
+      body: JSON.stringify(newOrderData)
+    });
   };
 
-  // Add room appointment
   const addRoomAppointment = async (roomName, date, time) => {
     if (!user) return;
     
-    const newApt = {
+    const newAptData = {
       id: `APT-${Math.floor(1000 + Math.random() * 9000)}`,
-      user_id: user.id,
       user_email: user.email,
       room: roomName,
       date,
@@ -176,121 +119,54 @@ export const AuthProvider = ({ children }) => {
       status: 'Pending'
     };
 
-    const { error } = await supabase.from('appointments').insert(newApt);
-    if (error) {
-      console.error('Error creating appointment:', error);
-      throw error;
-    }
-    return newApt;
+    return await fetchApi('/appointments', {
+      method: 'POST',
+      body: JSON.stringify(newAptData)
+    });
   };
 
-  // Get user's own orders
   const getUserOrders = async () => {
     if (!user) return [];
-    
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching orders:', error);
-      return [];
-    }
-    return data || [];
+    return await fetchApi('/orders/user');
   };
 
-  // Get user's own appointments
   const getUserAppointments = async () => {
     if (!user) return [];
-    
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching appointments:', error);
-      return [];
-    }
-    return data || [];
+    return await fetchApi('/appointments/user');
   };
 
-  // Get ALL orders (for owner dashboard)
   const getAllOrders = async () => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching all orders:', error);
-      return [];
-    }
-    return data || [];
+    return await fetchApi('/orders');
   };
 
-  // Get ALL appointments (for owner dashboard)
   const getAllAppointments = async () => {
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching all appointments:', error);
-      return [];
-    }
-    return data || [];
+    return await fetchApi('/appointments');
   };
 
-  // Update order status (owner)
   const updateOrderStatus = async (orderId, status) => {
-    const { error } = await supabase
-      .from('orders')
-      .update({ status })
-      .eq('id', orderId);
-    
-    if (error) {
-      console.error('Error updating order:', error);
-      throw error;
-    }
+    return await fetchApi(`/orders/${orderId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status })
+    });
   };
 
-  // Update appointment status (owner)
   const updateAppointmentStatus = async (aptId, status) => {
-    const { error } = await supabase
-      .from('appointments')
-      .update({ status })
-      .eq('id', aptId);
-    
-    if (error) {
-      console.error('Error updating appointment:', error);
-      throw error;
-    }
+    return await fetchApi(`/appointments/${aptId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status })
+    });
   };
 
-  // Logout
-  const logout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
-  };
-
-  // Create a compatible user object for components that expect { name, email, role }
   const compatibleUser = profile ? {
     name: profile.name,
     email: profile.email,
     role: profile.role,
-    id: user?.id
+    id: profile.id || user?.id
   } : null;
 
   return (
     <AuthContext.Provider value={{
       user: compatibleUser,
-      supabaseUser: user,
       profile,
       loading,
       login,
