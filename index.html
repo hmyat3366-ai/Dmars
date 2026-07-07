@@ -12,10 +12,19 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <!-- (Optional) Identify logged-in users -->
+    <!-- Auto-detect logged-in users -->
     <script>
-      window.XiaChatVisitorName = "User Name";
-      window.XiaChatVisitorEmail = "user@email.com";
+      try {
+        const storedUser = localStorage.getItem('sb-sbpfeonkcnbbzcdjsfom-auth-token');
+        if (storedUser) {
+          const authData = JSON.parse(storedUser);
+          const u = authData.user;
+          if (u) {
+            window.XiaChatVisitorName = u.user_metadata?.name || u.user_metadata?.full_name || u.email || '';
+            window.XiaChatVisitorEmail = u.email || '';
+          }
+        }
+      } catch(e) {}
     </script>
 
     <!-- Xia Chat Widget -->
