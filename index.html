@@ -15,12 +15,11 @@
     <!-- Auto-detect logged-in users -->
     <script>
       try {
-        const storedUser = localStorage.getItem('sb-sbpfeonkcnbbzcdjsfom-auth-token');
+        const storedUser = localStorage.getItem('user');
         if (storedUser) {
-          const authData = JSON.parse(storedUser);
-          const u = authData.user;
-          if (u) {
-            window.XiaChatVisitorName = u.user_metadata?.name || u.user_metadata?.full_name || u.email || '';
+          const u = JSON.parse(storedUser);
+          if (u && u.email) {
+            window.XiaChatVisitorName = u.name || u.email || '';
             window.XiaChatVisitorEmail = u.email || '';
           }
         }
